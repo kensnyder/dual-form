@@ -1,7 +1,7 @@
 "use strict";
 
 var DOMParser = require('xmldom').DOMParser;
-var Form = require('../src/dual-form');
+var Form = require('../src/dual-form').Form;
 
 function htmlToObject(html) {
 	var doc = new DOMParser({
@@ -284,6 +284,15 @@ module.exports = {
 				<option value="18">Springfield</option>\
 			</select>';
 		test.htmlEqual(form.renderElements(), expected, 'simple select');
+		// add option
+		form.elements[0].addOption({value: 19, text: 'Gotham'});
+		expected = 
+			'<select name="location">\
+				<option value="29" selected="selected">Hilldale</option>\
+				<option value="18">Springfield</option>\
+				<option value="19">Gotham</option>\
+			</select>';
+		test.htmlEqual(form.renderElements(), expected, 'addOption()');		
 
 		test.done();
 	}
