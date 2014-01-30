@@ -1,7 +1,10 @@
 "use strict";
 
 var DOMParser = require('xmldom').DOMParser;
-var Form = require('../src/dual-form').Form;
+var dualForm = require('../src/dual-form');
+var Form = dualForm.Form;
+var HTMLElement = dualForm.HTMLElement;
+var util = dualForm.util;
 
 function htmlToObject(html) {
 	var doc = new DOMParser({
@@ -111,7 +114,7 @@ module.exports = {
 		expected = 
 			'<form action="" method="GET">\
 				<textarea />\
-				<input type="text" value="" />\
+				<input type="text" />\
 			</form>';
 		test.htmlEqual(form.render(), expected, 'textarea and text input');
 		// + email input
@@ -119,8 +122,8 @@ module.exports = {
 		expected = 
 			'<form action="" method="GET">\
 				<textarea />\
-				<input type="text" value="" />\
-				<input type="email" value="" />\
+				<input type="text" />\
+				<input type="email" />\
 			</form>';
 		test.htmlEqual(form.render(), expected, 'textarea and email input');
 

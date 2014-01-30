@@ -2,7 +2,9 @@
   "name": "dual-form",
   "description": "Form processing, validation, and rendering for NodeJS and the Browser",
   "version": "0.1.0",
-  "dependencies": {},
+  "dependencies": {
+    "lodash": "~2.4.1"
+  },
   "devDependencies": {
     "grunt": "~0.4.2",
     "grunt-contrib-nodeunit": "~0.3.0",

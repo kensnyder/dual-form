@@ -5,6 +5,8 @@
 // 	}
 // }
 
+var _ = require('lodash');
+
 function HTMLElement() {}
 
 HTMLElement.prototype = {
@@ -32,7 +34,7 @@ HTMLElement.prototype = {
 		return this.attributes[name];
 	},
 	getAttributes: function() {
-		return JSON.parse(JSON.stringify(this.attributes));
+		return _.clone(this.attributes);
 	},
 	render: function() {
 		return util.tag(this.tagName, this.attributes);
@@ -46,6 +48,14 @@ HTMLElement.createElementClass = function(tagName, Parent, methods) {
 	ctor.prototype = Object.create(Parent.prototype);
 	ctor.prototype.tagName = tagName;
 	ctor.prototype.constructor = ctor;
+	ctor.prototype.callSuper = function() {
+		var args = [].slice.call(arguments);
+		var method = args.shift();
+		return Parent.prototype[method].apply(this, args);
+	};
+	ctor.prototype.applySuper = function(method, args) {
+		return Parent.prototype[method].apply(this, args);
+	};
 	if (methods.construct) {
 		ctor.prototype.construct = (function(construct) {
 			return function() {
@@ -76,6 +86,9 @@ var Form = HTMLElement.createElementClass('form', HTMLElement, {
 	},
 	render: function() {
 		return util.tag('form', this.attributes) + this.renderElements() + util.tag('/form');
+	},
+	getElement: function(name) {
+		
 	},
 	renderElements: function() {
 		return this.elements.map(function(element) {
@@ -119,7 +132,7 @@ var Form = HTMLElement.createElementClass('form', HTMLElement, {
 		else if (typeof value == 'object') {
 			// make a copy of the value
 			copy = {};
-			copy[name] = JSON.parse(JSON.stringify(value));
+			copy[name] = _.clone(value);
 			while ((element = this.elements[i++])) {
 				path = util.nameToPath(element.attributes.name);
 				resolvedValue = util.dive(copy, path);
@@ -138,6 +151,25 @@ var Form = HTMLElement.createElementClass('form', HTMLElement, {
 				}
 			}
 		}
+	},
+	get: function() {
+		// TODO: port jQuery serialize
+		// var values = [];
+		// this.elements.forEach(function(element) {
+		// 	if (element instanceof Form.Radio) {
+		// 		if (!!element.attributes.selected) {
+		// 			values.push(element.get());
+		// 		}
+		// 	}
+		// 	else if (element instanceof Form.Checkbox) {
+		// 		if (!!element.attributes.checked) {
+		// 			values.push(element.get());
+		// 		}
+		// 	}
+		// 	else {
+		// 		values.push
+		// 	}
+		// });
 	}
 });
 Form.Element = HTMLElement.createElementClass('element', HTMLElement, {
@@ -146,31 +178,39 @@ Form.Element = HTMLElement.createElementClass('element', HTMLElement, {
 	},
 	set: function(value) {
 		this.value = util.castToString(value);
+		return this;
 	}
 });
 Form.Textarea = HTMLElement.createElementClass('textarea', Form.Element, {
 	render: function() {
-		return util.tag('textarea', this.attributes) + util.esc(this.value) + util.tag('/textarea');
+		var attrs = this.getAttributes();
+		delete attrs.value;
+		return util.tag('textarea', attrs) + util.esc(this.value) + util.tag('/textarea');
 	}
 });
 Form.Input = HTMLElement.createElementClass('input', Form.Element, {
 	construct: function() {
-		this.type = 'text';		
+		this.attributes.type = 'text';		
+	},
+	set: function(value) {
+		this.attributes.value = util.castToString(value);
+		return this;
+	},
+	get: function() {
+		return this.attributes.value;
 	},
 	render: function() {
-		this.attributes.value = this.value;
-		this.attributes.type = this.type;
 		return util.tag('input', this.attributes);
 	}
 });
 Form.Email = HTMLElement.createElementClass('input', Form.Input, {
 	construct: function() {
-		this.type = 'email';
+		this.attributes.type = 'email';
 	}
 });
 Form.Checkbox = HTMLElement.createElementClass('input', Form.Input, {
 	construct: function() {
-		this.type = 'checkbox';
+		this.attributes.type = 'checkbox';
 	},
 	set: function(value) {
 		this.attributes.checked = (value === this.attributes.value ? 'checked' : undefined);
@@ -178,7 +218,7 @@ Form.Checkbox = HTMLElement.createElementClass('input', Form.Input, {
 });
 Form.Radio = HTMLElement.createElementClass('input', Form.Checkbox, {
 	construct: function() {
-		this.type = 'radio';
+		this.attributes.type = 'radio';
 	},
 	set: function(value) {
 		this.attributes.selected = (value === this.attributes.value ? 'selected' : undefined);
@@ -309,13 +349,6 @@ var util = {
 	}
 };
 
-// function sprintf() {
-// 	var args = [].slice.call(arguments);
-// 	var tpl = args.shift();
-// 	return tpl.replace(/%s/g, function() {
-// 		return args.shift();
-// 	});
-// }
 module.exports = {
 	Form: Form,
 	HTMLElement: HTMLElement,
