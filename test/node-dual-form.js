@@ -41,18 +41,29 @@ function nodeToObject(node) {
 
 module.exports = {
 
-	"htmlEqual method": function(test) {
+	"htmlEqual() and notHtmlEqual() methods": function(test) {
 		// sanity check
 		test.strictEqual(typeof DOMParser, 'function', 'DOMParser required ok');
 		// define method to compare that two html strings have the same structure
 		// regardless of attribute order or whitespace
 		test.constructor.prototype.htmlEqual = function(actual, expected, message) {
 			return this.deepEqual( htmlToObject(actual), htmlToObject(expected), message);
+		};		
+		test.constructor.prototype.notHtmlEqual = function(actual, expected, message) {
+			return this.notDeepEqual( htmlToObject(actual), htmlToObject(expected), message);
 		};
 		test.htmlEqual('<div />', '<div></div>', "closing vs. self-closing");
 		test.htmlEqual('<div id=2 attr="1"></div>', '<div attr="1" id="2"></div>', "attribute order shouldn't matter");
 		test.htmlEqual('\n<div id="2" attr="1">\t </div>', '<div attr="1" id="2"></div>', "whitespace should be ignored");
 		test.htmlEqual('<i><b>hello</b> friend</i>', '<i><b> hello </b> friend</i>', "nesting");
+		// trees produced by htmlToObject for attributes with no values
+		var regular = htmlToObject('<input />');
+		var readonly = htmlToObject('<input readonly />');
+		test.notDeepEqual(regular, readonly, 'different trees');
+		test.strictEqual('readonly' in regular.attributes, false, 'does not have attribute');
+		test.strictEqual('readonly' in readonly.attributes, true, 'has attribute');
+		// notHTMLEqual
+		test.notHtmlEqual('<input />','<input checked />','notHtmlEqual()');
 
 		test.done();
 	}
@@ -207,6 +218,72 @@ module.exports = {
 			<input type=text name="user[faves][]" value=a>\
 			<input type=text name="user[faves][]" value=b>';
 		test.htmlEqual(form.renderElements(), expected, 'set() with one object arg');
+
+		test.done();
+	}	
+	,
+	"checkboxes": function(test) {
+		var expected;
+		var form = new Form();
+		// inputs
+		form.add('tag[]', 'checkbox', {id:undefined, value:5});
+		form.add('tag[]', 'checkbox', {id:undefined, value:16});
+		expected = 
+			'<input type=checkbox name="tag[]" value="5">\
+			<input type=checkbox name="tag[]" value="16">';
+		test.htmlEqual(form.renderElements(), expected, 'checkboxes');
+		// check a checkbox
+		form.set('tag', [16]);
+		expected = 
+			'<input type=checkbox name="tag[]" value="5">\
+			<input type=checkbox name="tag[]" value="16" checked="checked">';
+		test.htmlEqual(form.renderElements(), expected, 'checkboxes');
+		// nested object
+		form = new Form();
+		form.add('data[tag][]', 'checkbox', {id:undefined, value:5});
+		form.add('data[tag][]', 'checkbox', {id:undefined, value:16});
+		form.set({data: {tag: [5]}});
+		expected = 
+			'<input type=checkbox name="data[tag][]" value="5" checked="checked">\
+			<input type=checkbox name="data[tag][]" value="16">';
+		test.htmlEqual(form.renderElements(), expected, 'checkboxes');
+
+		test.done();
+	}	
+	,
+	"radio buttons": function(test) {
+		var expected;
+		var form = new Form();
+		// select a radio
+		form.add('category', 'radio', {id:undefined, value:5});
+		form.add('category', 'radio', {id:undefined, value:16});		
+		form.set('category', 16);
+		expected = 
+			'<input type=radio name="category" value="5">\
+			<input type=radio name="category" value="16" selected="selected">';
+		test.htmlEqual(form.renderElements(), expected, 'checkboxes');
+
+		test.done();
+	}	
+	,
+	"select": function(test) {
+		var expected;
+		var form = new Form();
+		// select a radio
+		form.add('location', 'select', {
+			id: undefined, 
+			options: [
+				{ value: 29, text: 'Hilldale'},
+				{ value: 18, text: 'Springfield'}
+			]
+		});
+		form.set('location', 29);
+		expected = 
+			'<select name="location">\
+				<option value="29" selected="selected">Hilldale</option>\
+				<option value="18">Springfield</option>\
+			</select>';
+		test.htmlEqual(form.renderElements(), expected, 'simple select');
 
 		test.done();
 	}

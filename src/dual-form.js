@@ -1,5 +1,9 @@
 "use strict";
-
+// function extend() {
+// 	for (var i = 0, len = arguments.length; i < len; i++) {
+// 		for
+// 	}
+// }
 function Form(attrs) {
 	this.elements = [];
 	this.data = {};
@@ -23,6 +27,9 @@ Form.prototype = {
 	add: function(name, type, attrs) {
 		type = type || 'input';
 		var ElementClass = Form[type.slice(0,1).toUpperCase() + type.slice(1)];
+		if (!ElementClass) {
+			throw new Error('[dual-form] Form Element Class for type `' + type + '` not found.');
+		}
 		var element = new ElementClass(attrs);
 		element.attributes.name = name;
 		this.elements.push(element);
@@ -79,7 +86,7 @@ Form.Element = function() {};
 Form.Element.prototype = {
 	construct: function(attrs) {
 		this.attributes = attrs || {};
-		this.value = '';
+		this.value = castToString(this.attributes.value);		
 	},
 	set: function(value) {
 		this.value = castToString(value);
@@ -133,42 +140,85 @@ Form.Email = Form.createElementClass('input', Form.Input, {
 		this.type = 'email';
 	}
 });
-
-/*
-Form.Renderer = function(form) {
-	this.form = form;
-}
-Form.Renderer.prototype = {
-	render: function() {
-		var html = this.open({
-			url: this.form.url,
-			action: this.form.action,
-			method: this.form.method
-		});
-		var nonce = [];
-		this.form.elements.forEach(function(element) {
-			if (element.name in this.form.data) {
-				element.value...
-			}
-			html += this[element.tagName || element.tag](element);
-		}.bind(this));
-		html += this.close();
-		return html;
+Form.Checkbox = Form.createElementClass('input', Form.Input, {
+	construct: function() {
+		this.type = 'checkbox';
 	},
-	open: function(attrs) {
-		return tag('form', attrs);
-	},
-	input: function(attrs) {
-		if (typeof attrs.value == 'undefined') {
-			attrs.value = attrs.default || '';
-		}
-		return tag(attrs.tagName || 'input', attrs);
-	},
-	textarea: function(attrs) {
-
+	set: function(value) {
+		this.attributes.checked = (value === this.attributes.value ? 'checked' : undefined);
 	}
-};
-*/
+});
+Form.Radio = Form.createElementClass('input', Form.Checkbox, {
+	construct: function() {
+		this.type = 'radio';
+	},
+	set: function(value) {
+		this.attributes.selected = (value === this.attributes.value ? 'selected' : undefined);
+	}
+});
+Form.Option = Form.createElementClass('option', Form.Element, {
+	construct: function() {
+		this.text = castToString(this.attributes.text);
+		delete this.attributes.text;
+	},
+
+	render: function() {
+		this.attributes.value = this.value;
+		return tag('option', this.attributes) + this.text + tag('/option');
+	}
+});
+Form.Select = Form.createElementClass('select', Form.Element, {
+	construct: function() {
+		if (Array.isArray(this.attributes.options)) {
+			this.options = this.attributes.options.map(function(option) {
+				if (option instanceof Form.Option) {
+					return option;
+				}
+				else {
+					return new Form.Option(option);
+				}
+			});
+		}
+		else {
+			this.options = [];
+		}
+		delete this.attributes.options;
+	},	
+	render: function() {
+		return tag('select', this.attributes) + this.renderOptions() + tag('/select');
+	},
+	renderOptions: function() {
+		return this.options.map(function(option) {
+			return option.render();
+		}).join('');
+	},
+	set: function(value) {
+		var i = 0, option;
+		if (Array.isArray(value)) {
+			// multi select
+			while ((option = this.options[i++])) {
+				if (value.indexOf(option.value) > -1) {
+					option.attributes.selected = 'selected';
+				}
+				else {
+					delete option.attributes.selected;
+				}
+			}
+		}
+		else {
+			// regular select
+			value = castToString(value);
+			while ((option = this.options[i++])) {
+				if (option.value == value) {
+					option.attributes.selected = 'selected';
+					break;
+				}
+			}
+		}
+		return this;
+	}
+});
+
 Form.util = {
 
 };
