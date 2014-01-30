@@ -4,7 +4,9 @@ var DOMParser = require('xmldom').DOMParser;
 var Form = require('../src/dual-form');
 
 function htmlToObject(html) {
-	var doc = new DOMParser().parseFromString(html, 'text/html');
+	var doc = new DOMParser({
+		errorHandler:{warning:function(){}}
+	}).parseFromString(html, 'text/html');
 	//console.log('\n>>>\n', nodeToObject(doc.documentElement));
 	return nodeToObject(doc.documentElement);
 }
@@ -48,7 +50,7 @@ module.exports = {
 			return this.deepEqual( htmlToObject(actual), htmlToObject(expected), message);
 		};
 		test.htmlEqual('<div />', '<div></div>', "closing vs. self-closing");
-		test.htmlEqual('<div id="2" attr="1"></div>', '<div attr="1" id="2"></div>', "attribute order shouldn't matter");
+		test.htmlEqual('<div id=2 attr="1"></div>', '<div attr="1" id="2"></div>', "attribute order shouldn't matter");
 		test.htmlEqual('\n<div id="2" attr="1">\t </div>', '<div attr="1" id="2"></div>', "whitespace should be ignored");
 		test.htmlEqual('<i><b>hello</b> friend</i>', '<i><b> hello </b> friend</i>', "nesting");
 
@@ -89,14 +91,26 @@ module.exports = {
 		var form = new Form();
 		// textarea
 		form.elements.push(new Form.Textarea());
-		expected = '<form action="" method="GET"><textarea /></form>';
+		expected = 
+			'<form action="" method="GET">\
+				<textarea />\
+			</form>';
 		// + text input
 		form.elements.push(new Form.Input());
-		expected = '<form action="" method="GET"><textarea /><input type="text" /></form>';
+		expected = 
+			'<form action="" method="GET">\
+				<textarea />\
+				<input type="text" value="" />\
+			</form>';
 		test.htmlEqual(form.render(), expected, 'textarea and text input');
 		// + email input
 		form.elements.push(new Form.Email());
-		expected = '<form action="" method="GET"><textarea /><input type="text" /><input type="email" /></form>';
+		expected = 
+			'<form action="" method="GET">\
+				<textarea />\
+				<input type="text" value="" />\
+				<input type="email" value="" />\
+			</form>';
 		test.htmlEqual(form.render(), expected, 'textarea and email input');
 
 		test.done();
@@ -106,9 +120,93 @@ module.exports = {
 		var expected;
 		var form = new Form();
 		// textarea
-		form.add('ta', 'textarea');
-		expected = '<form action="" method="GET"><textarea name="ta" id="Ta" /></form>';
-		test.htmlEqual(form.render(), expected, 'textarea and email input');
+		form.add('data[ta]', 'textarea');
+		expected = 
+			'<form action="" method="GET">\
+				<textarea name="data[ta]" id="DataTa" />\
+			</form>';
+		test.htmlEqual(form.render(), expected, 'textarea');
+		// textarea 2
+		form = new Form();
+		form.add('ta', 'textarea', {id:'foo'});
+		expected = 
+			'<form action="" method="GET">\
+				<textarea name="ta" id="foo" />\
+			</form>';
+		test.htmlEqual(form.render(), expected, 'textarea with attributes');
+
+		test.done();
+	}	
+	,
+	"set()": function(test) {
+		var expected;
+		var form = new Form();
+		// textarea
+		form = new Form();
+		form.add('ta', 'textarea', {id:undefined});
+		form.set('ta', '5')
+		test.strictEqual(form.elements[0].value, '5', 'value properly set');
+		expected = 
+			'<form action="" method="GET">\
+				<textarea name="ta">5</textarea>\
+			</form>';
+		test.htmlEqual(form.render(), expected, 'value properly rendered');
+
+		test.done();
+	}	
+	,
+	"set() with arrays": function(test) {
+		var expected;
+		var form = new Form();
+		// inputs
+		form = new Form();
+		form.add('tags[]', 'input', {id:undefined});
+		form.add('tags[]', 'input', {id:undefined});
+		form.set('tags', ['one','two']);
+		expected = 
+			'<input type=text name="tags[]" value="one">\
+			<input type=text name="tags[]" value=two>';
+		test.htmlEqual(form.renderElements(), expected, 'setting values from array');
+
+		test.done();
+	}	
+	,
+	"set() with objects": function(test) {
+		var expected;
+		var form = new Form();
+		// inputs
+		form = new Form();
+		form.add('user[fname]', 'input', {id:undefined});
+		form.add('user[lname]', 'input', {id:undefined});
+		form.set('user', {fname:'John', lname:'Doe'});
+		expected = 
+			'<input type=text name="user[fname]" value="John">\
+			<input type=text name="user[lname]" value=Doe>';
+		test.htmlEqual(form.renderElements(), expected, 'setting values from object');
+		// one arg
+		form.set({user: {fname:'Jennifer', lname:'Williams'}});
+		expected = 
+			'<input type=text name="user[fname]" value="Jennifer">\
+			<input type=text name="user[lname]" value=Williams>';
+		test.htmlEqual(form.renderElements(), expected, 'set() with one object arg');
+
+		test.done();
+	}	
+	,
+	"set() with objects and arrays": function(test) {
+		var expected;
+		var form = new Form();
+		// inputs
+		form = new Form();
+		form.add('user[name]', 'input', {id:undefined});
+		form.add('user[faves][]', 'input', {id:undefined});
+		form.add('user[faves][]', 'input', {id:undefined});
+		form.set({user: {name:'Ralph', faves: ['a','b']}});
+		expected = 
+			'<input type=text name="user[name]" value="Ralph">\
+			<input type=text name="user[faves][]" value=a>\
+			<input type=text name="user[faves][]" value=b>';
+		test.htmlEqual(form.renderElements(), expected, 'set() with one object arg');
 
 		test.done();
 	}

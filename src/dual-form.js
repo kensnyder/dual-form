@@ -27,6 +27,52 @@ Form.prototype = {
 		element.attributes.name = name;
 		this.elements.push(element);
 		return element;
+	},
+	set: function(name, value) {
+		var pos = 0, i = 0, element, path, resolvedValue, copy;
+		if (typeof name == 'object') {
+			// set from object
+			Object.keys(name).forEach(function(key) {
+				this.set(key, name[key]);
+			}, this);
+			return this;
+		}
+		if (Array.isArray(value)) {
+			// usual case of setting a string
+			while ((element = this.elements[i++]) && value.length) {
+				if (
+					name === element.attributes.name 
+					|| name + '[]' === element.attributes.name
+					|| name + '[' + pos + ']'
+				) {
+					pos++;
+					element.set(value.shift());
+				}
+			}
+			return this;
+		}
+		else if (typeof value == 'object') {
+			// make a copy of the value
+			copy = {};
+			copy[name] = JSON.parse(JSON.stringify(value));
+			while ((element = this.elements[i++])) {
+				path = nameToPath(element.attributes.name);
+				resolvedValue = dive(copy, path);
+				if (resolvedValue !== undefined) {
+					element.set(resolvedValue);
+				}
+			}
+			return this;
+		}
+		else {
+			// usual case of setting a string
+			while ((element = this.elements[i++])) {
+				if (name === element.attributes.name) {
+					element.set(value);
+					return this;
+				}
+			}
+		}
 	}
 };
 Form.Element = function() {};
@@ -35,6 +81,9 @@ Form.Element.prototype = {
 		this.attributes = attrs || {};
 		this.value = '';
 	},
+	set: function(value) {
+		this.value = castToString(value);
+	},	
 	render: function() {
 		return tag(this.tagName, this.attributes);
 	}
@@ -71,13 +120,12 @@ Form.Textarea = Form.createElementClass('textarea', Form.Element, {
 });
 Form.Input = Form.createElementClass('input', Form.Element, {
 	construct: function() {
-		this.type = 'text';
+		this.type = 'text';		
 	},
 	render: function() {
-		if (!('type' in this.attributes)) {
-			this.attributes.type = this.type;
-		}
-		return tag('input', this.attributes) + esc(this.value);
+		this.attributes.value = this.value;
+		this.attributes.type = this.type;
+		return tag('input', this.attributes);
 	}
 });
 Form.Email = Form.createElementClass('input', Form.Input, {
@@ -121,12 +169,34 @@ Form.Renderer.prototype = {
 	}
 };
 */
+Form.util = {
+
+};
+function nameToPath(name) {
+	return name.
+		replace(/\[(\w+)\]/g, '.$1.').
+		replace(/\.{2,}/g, '.').
+		replace(/\.$/, '').
+		split('.')
+	;
+}
+function dive(data, path) {
+	var attr;
+	while (path.length > 0 && data !== undefined) {
+		attr = path.shift();
+		data = data[attr];
+		if (Array.isArray(data) && path[0] == '[]') {
+			return data.shift();
+		}
+	}
+	return data;
+}
 function tag(tagName, attrs) {
 	attrs = attrs || {};
-	if (!attrs.id && !!attrs.name) {
-		attrs.id = (' ' + attrs.name).replace(/\W+([a-z])/g, function($0, $1) {
+	if (!('id' in attrs) && !!attrs.name) {
+		attrs.id = castToString(attrs.name).replace(/(?:^|\W+)([a-z])/g, function($0, $1) {
 			return $1.toUpperCase();
-		});
+		}).replace(/\W/g, '');
 	}
 	var html = '<' + tagName + attr(attrs) + '>';
 	// var wrapper = attr.wrapper === false ? '%s%s' : (attr.wrapper || '<div class="input input-%s">%s</div>');
@@ -163,9 +233,11 @@ var map = {
   '"': "&quot;",
   "'": "&#x27;"
 };
+function castToString(s) {
+	return (s === false || s === null || s === undefined ? '' : '' + s);
+}
 function esc(text) {
-	text = (text === false || text === null || text === undefined ? '' : text);
-	return ('' + text).replace(/[&<>"']/g, function($0) {
+	return castToString(text).replace(/[&<>"']/g, function($0) {
 		return map[$0];
 	});
 }
