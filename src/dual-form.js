@@ -35,7 +35,7 @@ HTMLElement.prototype = {
 		return JSON.parse(JSON.stringify(this.attributes));
 	},
 	render: function() {
-		return tag(this.tagName, this.attributes);
+		return util.tag(this.tagName, this.attributes);
 	}
 };
 HTMLElement.createElementClass = function(tagName, Parent, methods) {
@@ -75,7 +75,7 @@ var Form = HTMLElement.createElementClass('form', HTMLElement, {
 		this.data = {};
 	},
 	render: function() {
-		return tag('form', this.attributes) + this.renderElements() + tag('/form');
+		return util.tag('form', this.attributes) + this.renderElements() + util.tag('/form');
 	},
 	renderElements: function() {
 		return this.elements.map(function(element) {
@@ -121,8 +121,8 @@ var Form = HTMLElement.createElementClass('form', HTMLElement, {
 			copy = {};
 			copy[name] = JSON.parse(JSON.stringify(value));
 			while ((element = this.elements[i++])) {
-				path = nameToPath(element.attributes.name);
-				resolvedValue = dive(copy, path);
+				path = util.nameToPath(element.attributes.name);
+				resolvedValue = util.dive(copy, path);
 				if (resolvedValue !== undefined) {
 					element.set(resolvedValue);
 				}
@@ -142,15 +142,15 @@ var Form = HTMLElement.createElementClass('form', HTMLElement, {
 });
 Form.Element = HTMLElement.createElementClass('element', HTMLElement, {
 	construct: function() {
-		this.value = castToString(this.attributes.value);		
+		this.value = util.castToString(this.attributes.value);		
 	},
 	set: function(value) {
-		this.value = castToString(value);
+		this.value = util.castToString(value);
 	}
 });
 Form.Textarea = HTMLElement.createElementClass('textarea', Form.Element, {
 	render: function() {
-		return tag('textarea', this.attributes) + esc(this.value) + tag('/textarea');
+		return util.tag('textarea', this.attributes) + util.esc(this.value) + util.tag('/textarea');
 	}
 });
 Form.Input = HTMLElement.createElementClass('input', Form.Element, {
@@ -160,7 +160,7 @@ Form.Input = HTMLElement.createElementClass('input', Form.Element, {
 	render: function() {
 		this.attributes.value = this.value;
 		this.attributes.type = this.type;
-		return tag('input', this.attributes);
+		return util.tag('input', this.attributes);
 	}
 });
 Form.Email = HTMLElement.createElementClass('input', Form.Input, {
@@ -186,12 +186,12 @@ Form.Radio = HTMLElement.createElementClass('input', Form.Checkbox, {
 });
 Form.Option = HTMLElement.createElementClass('option', Form.Element, {
 	construct: function() {
-		this.text = castToString(this.attributes.text);
+		this.text = util.castToString(this.attributes.text);
 		delete this.attributes.text;
 	},
 	render: function() {
 		this.attributes.value = this.value;
-		return tag('option', this.attributes) + this.text + tag('/option');
+		return util.tag('option', this.attributes) + this.text + util.tag('/option');
 	}
 });
 Form.Select = HTMLElement.createElementClass('select', Form.Element, {
@@ -212,7 +212,7 @@ Form.Select = HTMLElement.createElementClass('select', Form.Element, {
 		return this;
 	},
 	render: function() {
-		return tag('select', this.attributes) + this.renderOptions() + tag('/select');
+		return util.tag('select', this.attributes) + this.renderOptions() + util.tag('/select');
 	},
 	renderOptions: function() {
 		return this.options.map(function(option) {
@@ -234,7 +234,7 @@ Form.Select = HTMLElement.createElementClass('select', Form.Element, {
 		}
 		else {
 			// regular select
-			value = castToString(value);
+			value = util.castToString(value);
 			while ((option = this.options[i++])) {
 				if (option.value == value) {
 					option.attributes.selected = 'selected';
@@ -247,78 +247,75 @@ Form.Select = HTMLElement.createElementClass('select', Form.Element, {
 });
 
 var util = {
-
-};
-function nameToPath(name) {
-	return name.
-		replace(/\[(\w+)\]/g, '.$1.').
-		replace(/\.{2,}/g, '.').
-		replace(/\.$/, '').
-		split('.')
-	;
-}
-function dive(data, path) {
-	var attr;
-	while (path.length > 0 && data !== undefined) {
-		attr = path.shift();
-		data = data[attr];
-		if (Array.isArray(data) && path[0] == '[]') {
-			return data.shift();
+	tag: function(tagName, attrs) {
+		attrs = attrs || {};
+		if (!('id' in attrs) && !!attrs.name) {
+			attrs.id = util.castToString(attrs.name).replace(/(?:^|\W+)([a-z])/g, function($0, $1) {
+				return $1.toUpperCase();
+			}).replace(/\W/g, '');
 		}
-	}
-	return data;
-}
-function tag(tagName, attrs) {
-	attrs = attrs || {};
-	if (!('id' in attrs) && !!attrs.name) {
-		attrs.id = castToString(attrs.name).replace(/(?:^|\W+)([a-z])/g, function($0, $1) {
-			return $1.toUpperCase();
-		}).replace(/\W/g, '');
-	}
-	var html = '<' + tagName + attr(attrs) + '>';
-	// var wrapper = attr.wrapper === false ? '%s%s' : (attr.wrapper || '<div class="input input-%s">%s</div>');
-	// html = sprintf(wrapper, tagName, html);
-	return html;
-}
-function sprintf() {
-	var args = [].slice.call(arguments);
-	var tpl = args.shift();
-	return tpl.replace(/%s/g, function() {
-		return args.shift();
-	});
-}
-function attr(attrs) {
-	var out = '';
-	for (var p in attrs || {}) {
-		if (
-			attrs.hasOwnProperty(p) 
-			&& p != 'tagName' 
-			&& p != 'tag' 
-			&& typeof attrs[p] != 'function' 
-			&& typeof attrs[p] != 'undefined' 
-			&& p != 'wrapper'
-		) {
-			out += ' ' + esc(p) + '="' + esc(attrs[p]) + '"'; 
+		var html = '<' + tagName + util.attr(attrs) + '>';
+		return html;
+	},
+	attr: function(attrs) {
+		var out = '';
+		for (var p in attrs || {}) {
+			if (
+				attrs.hasOwnProperty(p) 
+				&& p != 'tagName' 
+				&& p != 'tag' 
+				&& typeof attrs[p] != 'function' 
+				&& typeof attrs[p] != 'undefined' 
+				&& p != 'wrapper'
+			) {
+				out += ' ' + util.esc(p) + '="' + util.esc(attrs[p]) + '"'; 
+			}
 		}
+		return out;
+	},
+	nameToPath: function(name) {
+		return name.
+			replace(/\[(\w+)\]/g, '.$1.').
+			replace(/\.{2,}/g, '.').
+			replace(/\.$/, '').
+			split('.')
+		;
+	},
+	dive: function(data, path) {
+		var attr;
+		while (path.length > 0 && data !== undefined) {
+			attr = path.shift();
+			data = data[attr];
+			if (Array.isArray(data) && path[0] == '[]') {
+				return data.shift();
+			}
+		}
+		return data;
+	},
+	castToString: function(s) {
+		return (s === false || s === null || s === undefined ? '' : '' + s);
+	},
+	escapeChars: {
+	  "&": "&amp;",
+	  "<": "&lt;",
+	  ">": "&gt;",
+	  '"': "&quot;",
+	  "'": "&#x27;"
+	},
+	esc: function(text) {
+		return util.castToString(text).replace(/[&<>"']/g, function($0) {
+			return util.escapeChars[$0];
+		});
 	}
-	return out;
-}
-var map = {
-  "&": "&amp;",
-  "<": "&lt;",
-  ">": "&gt;",
-  '"': "&quot;",
-  "'": "&#x27;"
 };
-function castToString(s) {
-	return (s === false || s === null || s === undefined ? '' : '' + s);
-}
-function esc(text) {
-	return castToString(text).replace(/[&<>"']/g, function($0) {
-		return map[$0];
-	});
-}
 
+// function sprintf() {
+// 	var args = [].slice.call(arguments);
+// 	var tpl = args.shift();
+// 	return tpl.replace(/%s/g, function() {
+// 		return args.shift();
+// 	});
+// }
 module.exports = {
 	Form: Form,
 	HTMLElement: HTMLElement,
