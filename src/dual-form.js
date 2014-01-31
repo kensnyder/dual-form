@@ -7,9 +7,116 @@
 
 var _ = require('lodash');
 
-function HTMLElement() {}
+var uid = 0;
 
-HTMLElement.prototype = {
+var util = {
+	getUid: function() {
+		return uid++;
+	},
+	generateId: function(fromName) {
+		return util.castToString(fromName).replace(/(?:^|\W+)([a-z])/g, function($0, $1) {
+			return $1.toUpperCase();
+		}).replace(/\W/g, '');
+	},
+	tag: function(tagName, attrs) {
+		attrs = attrs || {};
+		if (!('id' in attrs) && !!attrs.name) {
+			attrs.id = util.generateId(attrs.name);
+		}
+		var html = '<' + tagName + util.attr(attrs) + '>';
+		return html;
+	},
+	attr: function(attrs) {
+		var out = '';
+		for (var p in attrs || {}) {
+			if (
+				attrs.hasOwnProperty(p) 
+				&& p != 'tagName' 
+				&& p != 'tag' 
+				&& typeof attrs[p] != 'function' 
+				&& typeof attrs[p] != 'undefined' 
+				&& p != 'wrapper'
+			) {
+				out += ' ' + util.esc(p) + '="' + util.esc(attrs[p]) + '"'; 
+			}
+		}
+		return out;
+	},
+	nameToPath: function(name) {
+		return name.
+			replace(/\[(\w+)\]/g, '.$1.').
+			replace(/\.{2,}/g, '.').
+			replace(/\.$/, '').
+			split('.')
+		;
+	},
+	dive: function(data, path) {
+		var attr;
+		while (path.length > 0 && data !== undefined) {
+			attr = path.shift();
+			data = data[attr];
+			if (Array.isArray(data) && path[0] == '[]') {
+				return data.shift();
+			}
+		}
+		return data;
+	},
+	castToString: function(s) {
+		return (s === false || s === null || s === undefined ? '' : '' + s);
+	},
+	escapeChars: {
+	  "&": "&amp;",
+	  "<": "&lt;",
+	  ">": "&gt;",
+	  '"': "&quot;",
+	  "'": "&#x27;"
+	},
+	esc: function(text) {
+		return util.castToString(text).replace(/[&<>"']/g, function($0) {
+			return util.escapeChars[$0];
+		});
+	},
+	createClass: function(Parent, methods) {
+		methods = methods || {};
+		var ctor = function() {
+			this.construct.apply(this, [].slice.call(arguments));
+		};
+		ctor.prototype = Object.create(Parent.prototype);
+		ctor.prototype.constructor = ctor;
+		ctor.prototype.callSuper = function() {
+			var args = [].slice.call(arguments);
+			var method = args.shift();
+			return Parent.prototype[method].apply(this, args);
+		};
+		ctor.prototype.applySuper = function(method, args) {
+			return Parent.prototype[method].apply(this, args);
+		};
+		if (methods.construct) {
+			if (Parent.prototype.construct) {				
+				ctor.prototype.construct = (function(construct) {
+					return function() {
+						var args = [].slice.call(arguments);
+						Parent.prototype.construct.apply(this, args);
+						construct.apply(this, args);
+					};
+				})(methods.construct);
+			}
+			else {
+				ctor.prototype.construct = methods.construct;
+			}
+		}
+		for (var name in methods) {
+			if (!methods.hasOwnProperty(name) || name == 'construct') {
+				continue;
+			}
+			ctor.prototype[name] = methods[name];
+		}
+		return ctor;
+	}
+};
+function Element() {}
+
+Element.prototype = {
 	construct: function(attrs) {
 		this.attributes = {};
 		this.setAttributes(attrs);
@@ -37,43 +144,29 @@ HTMLElement.prototype = {
 		return _.clone(this.attributes);
 	},
 	render: function() {
-		return util.tag(this.tagName, this.attributes);
+		return util.tag(this.tagName, this.attributes) + 
+			util.esc(this.innerHTML) + 
+			util.tag('/' + this.tagName)
+		;
+	},
+	getId: function() {
+		if (!this.attributes.id) {
+			if (!!this.attributes.name) {
+				this.attributes.id = util.generateId(this.attributes.name);
+			}
+			else {
+				this.attributes.id = 'Element' + util.getUid();
+			}
+		}
+		return this.attributes.id;
 	}
 };
-HTMLElement.createElementClass = function(tagName, Parent, methods) {
-	methods = methods || {};
-	var ctor = function() {
-		this.construct.apply(this, [].slice.call(arguments));
-	};
-	ctor.prototype = Object.create(Parent.prototype);
+Element.createClass = function(tagName, Parent, methods) {
+	var ctor = util.createClass(Parent, methods);
 	ctor.prototype.tagName = tagName;
-	ctor.prototype.constructor = ctor;
-	ctor.prototype.callSuper = function() {
-		var args = [].slice.call(arguments);
-		var method = args.shift();
-		return Parent.prototype[method].apply(this, args);
-	};
-	ctor.prototype.applySuper = function(method, args) {
-		return Parent.prototype[method].apply(this, args);
-	};
-	if (methods.construct) {
-		ctor.prototype.construct = (function(construct) {
-			return function() {
-				var args = [].slice.call(arguments);
-				Parent.prototype.construct.apply(this, args);
-				construct.apply(this, args);
-			};
-		})(methods.construct);
-	}
-	for (var name in methods) {
-		if (!methods.hasOwnProperty(name) || name == 'construct') {
-			continue;
-		}
-		ctor.prototype[name] = methods[name];
-	}
 	return ctor;
 };
-var Form = HTMLElement.createElementClass('form', HTMLElement, {
+var Form = Element.createClass('form', Element, {
 	construct: function() {
 		if (!('action' in this.attributes)) {
 			this.setAttribute('action', '');
@@ -84,11 +177,11 @@ var Form = HTMLElement.createElementClass('form', HTMLElement, {
 		this.elements = [];
 		this.data = {};
 	},
+	find: function(name) {
+
+	},
 	render: function() {
 		return util.tag('form', this.attributes) + this.renderElements() + util.tag('/form');
-	},
-	getElement: function(name) {
-		
 	},
 	renderElements: function() {
 		return this.elements.map(function(element) {
@@ -101,8 +194,9 @@ var Form = HTMLElement.createElementClass('form', HTMLElement, {
 		if (!ElementClass) {
 			throw new Error('[dual-form] Form Element Class for type `' + type + '` not found.');
 		}
+		attrs = _.clone(attrs || {});
+		attrs.name = name;
 		var element = new ElementClass(attrs);
-		element.attributes.name = name;
 		this.elements.push(element);
 		return element;
 	},
@@ -172,7 +266,7 @@ var Form = HTMLElement.createElementClass('form', HTMLElement, {
 		// });
 	}
 });
-Form.Element = HTMLElement.createElementClass('element', HTMLElement, {
+Form.Element = Element.createClass('element', Element, {
 	construct: function() {
 		this.value = util.castToString(this.attributes.value);		
 	},
@@ -181,14 +275,14 @@ Form.Element = HTMLElement.createElementClass('element', HTMLElement, {
 		return this;
 	}
 });
-Form.Textarea = HTMLElement.createElementClass('textarea', Form.Element, {
+Form.Textarea = Element.createClass('textarea', Form.Element, {
 	render: function() {
 		var attrs = this.getAttributes();
 		delete attrs.value;
 		return util.tag('textarea', attrs) + util.esc(this.value) + util.tag('/textarea');
 	}
 });
-Form.Input = HTMLElement.createElementClass('input', Form.Element, {
+Form.Input = Element.createClass('input', Form.Element, {
 	construct: function() {
 		this.attributes.type = 'text';		
 	},
@@ -203,20 +297,74 @@ Form.Input = HTMLElement.createElementClass('input', Form.Element, {
 		return util.tag('input', this.attributes);
 	}
 });
-Form.Email = HTMLElement.createElementClass('input', Form.Input, {
+Form.Email = Element.createClass('input', Form.Input, {
 	construct: function() {
 		this.attributes.type = 'email';
 	}
 });
-Form.Checkbox = HTMLElement.createElementClass('input', Form.Input, {
+Form.Label = Element.createClass('input', Element, {
+	construct: function() {
+		if (this.attributes.label) {
+			this.innerHTML = this.attributes.label;
+			delete this.attributes.label;
+		}
+	}
+});
+Form.Checkbox = Element.createClass('input', Form.Input, {
 	construct: function() {
 		this.attributes.type = 'checkbox';
+		if (this.attributes.label) {
+			this.setLabel(this.attributes.label);
+			delete this.attributes.label;
+		}
+	},
+	setLabel: function(label) {
+		if (!(label instanceof Form.Label)) {
+			label = new Form.Label(typeof label == 'string' ? {label:label} : label);
+		}
+		this.label = label;
+		return this;
 	},
 	set: function(value) {
 		this.attributes.checked = (value === this.attributes.value ? 'checked' : undefined);
+	},
+	render: function() {
+		//var html = this.callSuper('render');
+		var html = Form.Input.prototype.render.call(this);
+		if (this.label) {
+			// TODO: allow different decorators
+			//html += ' ' + this.label.render();
+		}
+		return html;
 	}
 });
-Form.Radio = HTMLElement.createElementClass('input', Form.Checkbox, {
+Form.ElementList = util.createClass(Object, {
+	construct: function() {
+		this.elements = [];
+	},
+	set: Form.prototype.set,
+	get: Form.prototype.get,
+	find: Form.prototype.find,
+	add: Form.prototype.add,
+	renderElements: Form.prototype.renderElements,
+	render: Form.prototype.renderElements
+});
+Form.Checkboxes = util.createClass(Form.ElementList, {
+	construct: function(params) {
+		if (Array.isArray(params.options)) {
+			params.options.forEach(function(option) {
+				this.addOption(option);
+			}, this);
+		}
+	},
+	addOption: function(option) {
+		if (!(option instanceof Form.Checkbox)) {
+			option = new Form.Checkbox(option);
+		}
+		this.elements.push(option);
+	}
+});
+Form.Radio = Element.createClass('input', Form.Checkbox, {
 	construct: function() {
 		this.attributes.type = 'radio';
 	},
@@ -224,7 +372,7 @@ Form.Radio = HTMLElement.createElementClass('input', Form.Checkbox, {
 		this.attributes.selected = (value === this.attributes.value ? 'selected' : undefined);
 	}
 });
-Form.Option = HTMLElement.createElementClass('option', Form.Element, {
+Form.Option = Element.createClass('option', Form.Element, {
 	construct: function() {
 		this.text = util.castToString(this.attributes.text);
 		delete this.attributes.text;
@@ -234,7 +382,7 @@ Form.Option = HTMLElement.createElementClass('option', Form.Element, {
 		return util.tag('option', this.attributes) + this.text + util.tag('/option');
 	}
 });
-Form.Select = HTMLElement.createElementClass('select', Form.Element, {
+Form.Select = Element.createClass('select', Form.Element, {
 	construct: function() {
 		this.options = [];
 		if (Array.isArray(this.attributes.options)) {
@@ -286,71 +434,8 @@ Form.Select = HTMLElement.createElementClass('select', Form.Element, {
 	}
 });
 
-var util = {
-	tag: function(tagName, attrs) {
-		attrs = attrs || {};
-		if (!('id' in attrs) && !!attrs.name) {
-			attrs.id = util.castToString(attrs.name).replace(/(?:^|\W+)([a-z])/g, function($0, $1) {
-				return $1.toUpperCase();
-			}).replace(/\W/g, '');
-		}
-		var html = '<' + tagName + util.attr(attrs) + '>';
-		return html;
-	},
-	attr: function(attrs) {
-		var out = '';
-		for (var p in attrs || {}) {
-			if (
-				attrs.hasOwnProperty(p) 
-				&& p != 'tagName' 
-				&& p != 'tag' 
-				&& typeof attrs[p] != 'function' 
-				&& typeof attrs[p] != 'undefined' 
-				&& p != 'wrapper'
-			) {
-				out += ' ' + util.esc(p) + '="' + util.esc(attrs[p]) + '"'; 
-			}
-		}
-		return out;
-	},
-	nameToPath: function(name) {
-		return name.
-			replace(/\[(\w+)\]/g, '.$1.').
-			replace(/\.{2,}/g, '.').
-			replace(/\.$/, '').
-			split('.')
-		;
-	},
-	dive: function(data, path) {
-		var attr;
-		while (path.length > 0 && data !== undefined) {
-			attr = path.shift();
-			data = data[attr];
-			if (Array.isArray(data) && path[0] == '[]') {
-				return data.shift();
-			}
-		}
-		return data;
-	},
-	castToString: function(s) {
-		return (s === false || s === null || s === undefined ? '' : '' + s);
-	},
-	escapeChars: {
-	  "&": "&amp;",
-	  "<": "&lt;",
-	  ">": "&gt;",
-	  '"': "&quot;",
-	  "'": "&#x27;"
-	},
-	esc: function(text) {
-		return util.castToString(text).replace(/[&<>"']/g, function($0) {
-			return util.escapeChars[$0];
-		});
-	}
-};
-
 module.exports = {
 	Form: Form,
-	HTMLElement: HTMLElement,
+	Element: Element,
 	util: util
 };

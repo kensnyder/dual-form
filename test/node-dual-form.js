@@ -225,7 +225,7 @@ module.exports = {
 		test.done();
 	}	
 	,
-	"checkboxes": function(test) {
+	"checkbox": function(test) {
 		var expected;
 		var form = new Form();
 		// inputs
@@ -254,7 +254,7 @@ module.exports = {
 		test.done();
 	}	
 	,
-	"radio buttons": function(test) {
+	"radio button": function(test) {
 		var expected;
 		var form = new Form();
 		// select a radio
@@ -299,5 +299,24 @@ module.exports = {
 
 		test.done();
 	}
+	// ,
+	// "checkboxes": function(test) {
+	// 	var expected;
+	// 	var form = new Form();
+	// 	// select a radio
+	// 	form.add('location', 'checkboxes', {
+	// 		options: [
+	// 			{ value: 29, label: 'Hilldale'},
+	// 			{ value: 18, label: 'Springfield'}
+	// 		]
+	// 	});
+		
+	// 	expected = 
+	// 		'<input type=checkbox name=location[] id=Location0 value="29"> <label for=Location0>Hilldale</label>\
+	// 		<input type=checkbox name=location[] id=Location1 value="18"> <label for=Location1>Springfield</label>';
+	// 	test.htmlEqual(form.renderElements(), expected, 'checkbox group');		
+
+	// 	test.done();
+	// }
 
 };
