@@ -330,26 +330,51 @@ module.exports = {
 	}
 	,
 	"radios": function(test) {
-		// var expected;
-		// var form = new Form();
-		// // select a radio
-		// form.add('location[]', 'radios', {
-		// 	options: [
-		// 		{ value: 29, label: 'Hilldale', id: "a"},
-		// 		{ value: 18, label: 'Springfield', id: "b"}
-		// 	]
-		// });
+		var expected;
+		var form = new Form();
+		// select a radio
+		form.add('location[]', 'radios', {
+			options: [
+				{ value: 29, label: 'Hilldale', id: "a"},
+				{ value: 18, label: 'Springfield', id: "b"}
+			]
+		});
 		
-		// expected = 
-		// 	'<input type=radio name=location[] id=a value="29"> <label for=a>Hilldale</label><br>\
-		// 	<input type=radio name=location[] id=b value="18"> <label for=b>Springfield</label><br>';
-		// test.htmlEqual(form.renderElements(), expected, 'radio group');
+		expected = 
+			'<div>\
+				<input type=radio name=location[] id=a value="29"> <label for=a>Hilldale</label><br>\
+				<input type=radio name=location[] id=b value="18"> <label for=b>Springfield</label><br>\
+			</div>';
+		test.htmlEqual('<div>' + form.renderElements() + '</div>', expected, 'radio group');
 
-		// form.set('location', [29,18]);		
-		// expected = 
-		// 	'<input type=checkbox name=location[] id=a value="29" checked=checked> <label for=a>Hilldale</label>\
-		// 	<input type=checkbox name=location[] id=b value="18" checked=checked> <label for=b>Springfield</label>';
-		// test.htmlEqual(form.renderElements(), expected, 'radio group checked');
+		form.set('location', [29,18]);		
+		expected = 
+			'<div>\
+				<input type=radio name=location[] id=a value="29" checked=checked> <label for=a>Hilldale</label><br>\
+				<input type=radio name=location[] id=b value="18" checked=checked> <label for=b>Springfield</label><br>\
+			</div>';
+		test.htmlEqual('<div>' + form.renderElements() + '</div>', expected, 'radio group checked');
+
+		test.done();
+	}
+	,
+	"automatic ids": function(test) {
+		var expected;
+		var form = new Form();
+		// select a radio
+		form.add('location[]', 'radios', {
+			options: [
+				{ value: 29, label: 'Hilldale' },
+				{ value: 18, label: 'Springfield' }
+			]
+		});
+		
+		expected = 
+			'<div>\
+				<input type=radio name=location[] id=FormElement1 value="29"> <label for=FormElement1>Hilldale</label><br>\
+				<input type=radio name=location[] id=FormElement2 value="18"> <label for=FormElement2>Springfield</label><br>\
+			</div>';
+		test.htmlEqual('<div>' + form.renderElements() + '</div>', expected, 'radio group with auto ids');
 
 		test.done();
 	}

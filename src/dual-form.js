@@ -1,9 +1,4 @@
 "use strict";
-// function extend() {
-// 	for (var i = 0, len = arguments.length; i < len; i++) {
-// 		for
-// 	}
-// }
 
 var _ = require('lodash');
 
@@ -11,7 +6,7 @@ var uid = 0;
 
 var util = {
 	getUid: function() {
-		return uid++;
+		return ++uid;
 	},
 	generateId: function(fromName) {
 		return util.castToString(fromName).replace(/(?:^|\W+)([a-z])/g, function($0, $1) {
@@ -160,29 +155,12 @@ var Element = Base.subclass({
 				this.attributes.id = util.generateId(this.attributes.name);
 			}
 			else {
-				this.attributes.id = 'Element' + util.getUid();
+				this.attributes.id = 'FormElement' + util.getUid();
 			}
 		}
 		return this.attributes.id;
 	}
 });
-// (function(subclass) {
-// 	Element.subclass = function(tagName, methods) {
-// 		subclass(ctor)
-// 	};
-// })(Element.subclass);
-// Element.subclass = function(tagName, Parent, methods) {
-// 	if (arguments.length == 2) {
-// 		methods = Parent;
-// 		Parent = Element;
-// 	}
-// 	var ctor = Base.createClass(Parent, methods);
-// 	ctor.prototype.tagName = tagName;
-// 	ctor.subclass = function(tagName, methods) {
-// 		return Element.subclass(tagName, ctor, methods);
-// 	};	
-// 	return ctor;
-// };
 var Form = Element.subclass({
 	tagName: 'form',
 	construct: function() {
@@ -292,6 +270,14 @@ var Form = Element.subclass({
 		// 		values.push
 		// 	}
 		// });
+	},
+	validate: function() {
+		var result = {
+			valid: true,
+			warnings: [],
+			errors: []
+		};
+		return result;
 	}
 });
 Form.decorators = {};
@@ -305,9 +291,9 @@ Form.decorators.checkboxLabelBr = function(checkbox, html) {
 	return html;
 };
 Form.Element = Element.subclass({
-	tagName: 'element',
 	decorator: Form.decorators.none,
 	construct: function() {
+		this.validators = []; 
 		this.value = util.castToString(this.attributes.value);		
 	},
 	set: function(value) {
@@ -316,6 +302,36 @@ Form.Element = Element.subclass({
 	},
 	getName: function() {
 		return this.getAttribute('name');
+	},
+	validate: function(result) {
+		result = result || {
+			warnings: [],
+			errors: []
+		};
+		var valid = true;
+		this.validators.forEach(function(validator) {
+			var outcome = validator.call(this, this.get(), result);			
+			if (outcome === false) {
+				valid = false;
+			}
+			else if (typeof outcome == 'string') {
+				result.errors.push({
+					element: this,
+					message: outcome
+				});
+				valid = false;
+			}
+			else if (typeof outcome == 'object') {
+				outcome.element = this;
+				result.errors.push(outcome);
+			}
+		}, this);
+		result.valid = valid;
+		return result;
+	},
+	addValidator: function(validator) {
+		this.validators.push(validator);
+		return this;
 	}
 });
 Form.Textarea = Form.Element.subclass({
@@ -510,7 +526,8 @@ Form.Select = Form.Element.subclass({
 });
 
 module.exports = {
-	Form: Form,
+	Base: Base,
 	Element: Element,
+	Form: Form,
 	util: util
 };
