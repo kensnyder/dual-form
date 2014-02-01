@@ -20,7 +20,6 @@ module.exports = function(grunt) {
 					"unused": false,
 					"laxbreak": true,
 					"node": true,
-					"browser": true,
 					"smarttabs": true,
 					"globals": {}
 				},

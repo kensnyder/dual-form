@@ -18,7 +18,7 @@ function nodeToObject(node) {
 	if (node.nodeType === 3) { // text node
 		// trimming may produce technically incorrect results
 		// but will work fine for our tests
-		return { '#text': node.nodeValue.trim() };
+		return { '#text': node.nodeValue === ' ' ? ' ' : node.nodeValue.trim() };
 	}
 	obj.tagName = node.nodeName.toUpperCase();
 	//obj.nodeType = node.nodeType;
@@ -26,7 +26,7 @@ function nodeToObject(node) {
 	obj.attributes = {};
 	if (node.hasChildNodes()) {
 		for (i = 0, len = node.childNodes.length; i < len; i++) {
-			if (node.childNodes[i].nodeType === 3 && node.childNodes[i].nodeValue.trim() === '') {
+			if (node.childNodes[i].nodeType === 3 && node.childNodes[i].nodeValue.trim() === '' && node.childNodes[i].nodeValue !== ' ') {
 				// ignore whitespace text nodes
 				continue;
 			}
@@ -299,24 +299,59 @@ module.exports = {
 
 		test.done();
 	}
-	// ,
-	// "checkboxes": function(test) {
-	// 	var expected;
-	// 	var form = new Form();
-	// 	// select a radio
-	// 	form.add('location', 'checkboxes', {
-	// 		options: [
-	// 			{ value: 29, label: 'Hilldale'},
-	// 			{ value: 18, label: 'Springfield'}
-	// 		]
-	// 	});
+	,
+	"checkboxes": function(test) {
+		var expected;
+		var form = new Form();
+		// select a radio
+		form.add('location[]', 'checkboxes', {
+			options: [
+				{ value: 29, label: 'Hilldale', id: "a"},
+				{ value: 18, label: 'Springfield', id: "b"}
+			]
+		});
 		
-	// 	expected = 
-	// 		'<input type=checkbox name=location[] id=Location0 value="29"> <label for=Location0>Hilldale</label>\
-	// 		<input type=checkbox name=location[] id=Location1 value="18"> <label for=Location1>Springfield</label>';
-	// 	test.htmlEqual(form.renderElements(), expected, 'checkbox group');		
+		expected = 
+			'<div>\
+				<input type=checkbox name=location[] id=a value="29"> <label for=a>Hilldale</label><br>\
+				<input type=checkbox name=location[] id=b value="18"> <label for=b>Springfield</label><br>\
+			</div>';
+		test.htmlEqual('<div>' + form.renderElements() + '</div>', expected, 'checkbox group');
 
-	// 	test.done();
-	// }
+		form.set('location', [29,18]);		
+		expected = 
+			'<div>\
+				<input type=checkbox name=location[] id=a value="29" checked=checked> <label for=a>Hilldale</label><br>\
+				<input type=checkbox name=location[] id=b value="18" checked=checked> <label for=b>Springfield</label><br>\
+			</div>';
+		test.htmlEqual('<div>' + form.renderElements() + '</div>', expected, 'checkbox group checked');
+
+		test.done();
+	}
+	,
+	"radios": function(test) {
+		// var expected;
+		// var form = new Form();
+		// // select a radio
+		// form.add('location[]', 'radios', {
+		// 	options: [
+		// 		{ value: 29, label: 'Hilldale', id: "a"},
+		// 		{ value: 18, label: 'Springfield', id: "b"}
+		// 	]
+		// });
+		
+		// expected = 
+		// 	'<input type=radio name=location[] id=a value="29"> <label for=a>Hilldale</label><br>\
+		// 	<input type=radio name=location[] id=b value="18"> <label for=b>Springfield</label><br>';
+		// test.htmlEqual(form.renderElements(), expected, 'radio group');
+
+		// form.set('location', [29,18]);		
+		// expected = 
+		// 	'<input type=checkbox name=location[] id=a value="29" checked=checked> <label for=a>Hilldale</label>\
+		// 	<input type=checkbox name=location[] id=b value="18" checked=checked> <label for=b>Springfield</label>';
+		// test.htmlEqual(form.renderElements(), expected, 'radio group checked');
+
+		test.done();
+	}
 
 };

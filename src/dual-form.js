@@ -91,6 +91,9 @@ var util = {
 		ctor.prototype.applySuper = function(method, args) {
 			return Parent.prototype[method].apply(this, args);
 		};
+		ctor.subclass = function(methods) {
+			return util.createClass(ctor, methods);
+		};	
 		if (methods.construct) {
 			if (Parent.prototype.construct) {				
 				ctor.prototype.construct = (function(construct) {
@@ -114,9 +117,11 @@ var util = {
 		return ctor;
 	}
 };
-function Element() {}
 
-Element.prototype = {
+var Base = util.createClass(Object);
+
+var Element = Base.subclass({
+	tagName: 'element',
 	construct: function(attrs) {
 		this.attributes = {};
 		this.setAttributes(attrs);
@@ -160,13 +165,26 @@ Element.prototype = {
 		}
 		return this.attributes.id;
 	}
-};
-Element.createClass = function(tagName, Parent, methods) {
-	var ctor = util.createClass(Parent, methods);
-	ctor.prototype.tagName = tagName;
-	return ctor;
-};
-var Form = Element.createClass('form', Element, {
+});
+// (function(subclass) {
+// 	Element.subclass = function(tagName, methods) {
+// 		subclass(ctor)
+// 	};
+// })(Element.subclass);
+// Element.subclass = function(tagName, Parent, methods) {
+// 	if (arguments.length == 2) {
+// 		methods = Parent;
+// 		Parent = Element;
+// 	}
+// 	var ctor = Base.createClass(Parent, methods);
+// 	ctor.prototype.tagName = tagName;
+// 	ctor.subclass = function(tagName, methods) {
+// 		return Element.subclass(tagName, ctor, methods);
+// 	};	
+// 	return ctor;
+// };
+var Form = Element.subclass({
+	tagName: 'form',
 	construct: function() {
 		if (!('action' in this.attributes)) {
 			this.setAttribute('action', '');
@@ -185,7 +203,11 @@ var Form = Element.createClass('form', Element, {
 	},
 	renderElements: function() {
 		return this.elements.map(function(element) {
-			return element.render();
+			var html = element.render();
+			if (element.decorator) {
+				html = element.decorator(element, html);
+			}
+			return html;
 		}).join('');
 	},
 	add: function(name, type, attrs) {
@@ -201,7 +223,7 @@ var Form = Element.createClass('form', Element, {
 		return element;
 	},
 	set: function(name, value) {
-		var pos = 0, i = 0, element, path, resolvedValue, copy;
+		var pos = 0, i = 0, element, path, resolvedValue, copy, elName;
 		if (typeof name == 'object') {
 			// set from object
 			Object.keys(name).forEach(function(key) {
@@ -212,13 +234,19 @@ var Form = Element.createClass('form', Element, {
 		if (Array.isArray(value)) {
 			// usual case of setting a string
 			while ((element = this.elements[i++]) && value.length) {
+				elName = element.getName();
 				if (
-					name === element.attributes.name 
-					|| name + '[]' === element.attributes.name
+					name === elName
+					|| name + '[]' === elName
 					|| name + '[' + pos + ']'
 				) {
-					pos++;
-					element.set(value.shift());
+					if (element instanceof Form.ElementList) {
+						element.set(value);
+					}
+					else {						
+						pos++;
+						element.set(value.shift());
+					}
 				}
 			}
 			return this;
@@ -266,23 +294,40 @@ var Form = Element.createClass('form', Element, {
 		// });
 	}
 });
-Form.Element = Element.createClass('element', Element, {
+Form.decorators = {};
+Form.decorators.none = function(element, html) {
+	return html;
+};
+Form.decorators.checkboxLabelBr = function(checkbox, html) {
+	if (checkbox.label) {
+		html += ' ' + checkbox.label.render() + '<br>';
+	}
+	return html;
+};
+Form.Element = Element.subclass({
+	tagName: 'element',
+	decorator: Form.decorators.none,
 	construct: function() {
 		this.value = util.castToString(this.attributes.value);		
 	},
 	set: function(value) {
 		this.value = util.castToString(value);
 		return this;
+	},
+	getName: function() {
+		return this.getAttribute('name');
 	}
 });
-Form.Textarea = Element.createClass('textarea', Form.Element, {
+Form.Textarea = Form.Element.subclass({
+	tagName: 'textarea',
 	render: function() {
 		var attrs = this.getAttributes();
 		delete attrs.value;
 		return util.tag('textarea', attrs) + util.esc(this.value) + util.tag('/textarea');
 	}
 });
-Form.Input = Element.createClass('input', Form.Element, {
+Form.Input = Form.Element.subclass({
+	tagName: 'input',
 	construct: function() {
 		this.attributes.type = 'text';		
 	},
@@ -297,12 +342,13 @@ Form.Input = Element.createClass('input', Form.Element, {
 		return util.tag('input', this.attributes);
 	}
 });
-Form.Email = Element.createClass('input', Form.Input, {
+Form.Email = Form.Input.subclass({
 	construct: function() {
 		this.attributes.type = 'email';
 	}
 });
-Form.Label = Element.createClass('input', Element, {
+Form.Label = Element.subclass({
+	tagName: 'label',
 	construct: function() {
 		if (this.attributes.label) {
 			this.innerHTML = this.attributes.label;
@@ -310,7 +356,8 @@ Form.Label = Element.createClass('input', Element, {
 		}
 	}
 });
-Form.Checkbox = Element.createClass('input', Form.Input, {
+Form.Checkbox = Form.Input.subclass({
+	decorator: Form.decorators.checkboxLabelBr,
 	construct: function() {
 		this.attributes.type = 'checkbox';
 		if (this.attributes.label) {
@@ -318,71 +365,99 @@ Form.Checkbox = Element.createClass('input', Form.Input, {
 			delete this.attributes.label;
 		}
 	},
+	setAttribute: function(name, value) {
+		//this.callSuper('setAttribute', name, value);
+		Form.Input.prototype.setAttribute.call(this, name, value);
+		if (name === 'id' && this.label) {
+			this.label.setAttribute('for', this.getId());
+		}
+		return this;
+	},
 	setLabel: function(label) {
 		if (!(label instanceof Form.Label)) {
 			label = new Form.Label(typeof label == 'string' ? {label:label} : label);
 		}
 		this.label = label;
+		this.label.setAttribute('for', this.getId());
 		return this;
 	},
 	set: function(value) {
 		this.attributes.checked = (value === this.attributes.value ? 'checked' : undefined);
+		return this;
 	},
-	render: function() {
-		//var html = this.callSuper('render');
-		var html = Form.Input.prototype.render.call(this);
-		if (this.label) {
-			// TODO: allow different decorators
-			//html += ' ' + this.label.render();
-		}
-		return html;
+	check: function(toState) {
+		this.attributes.checked = toState ? "checked" : undefined;
+		return this;
 	}
 });
-Form.ElementList = util.createClass(Object, {
-	construct: function() {
+Form.ElementList = Base.subclass({
+	construct: function(params) {
+		this.name = params.name;
 		this.elements = [];
 	},
-	set: Form.prototype.set,
+	getName: function() {
+		return this.name;
+	},
 	get: Form.prototype.get,
 	find: Form.prototype.find,
 	add: Form.prototype.add,
 	renderElements: Form.prototype.renderElements,
 	render: Form.prototype.renderElements
 });
-Form.Checkboxes = util.createClass(Form.ElementList, {
+Form.Checkboxes = Form.ElementList.subclass({
+	memberClass: Form.Checkbox,
 	construct: function(params) {
 		if (Array.isArray(params.options)) {
-			params.options.forEach(function(option) {
-				this.addOption(option);
+			params.options.forEach(function(checkbox) {
+				this.addOption(checkbox);
 			}, this);
 		}
 	},
-	addOption: function(option) {
-		if (!(option instanceof Form.Checkbox)) {
-			option = new Form.Checkbox(option);
+	set: function(name, values) {
+		if (arguments.length == 2 && name != this.name) {
+			return this;
 		}
-		this.elements.push(option);
+		if (arguments.length == 1) {
+			values = name;
+		}
+		if (!Array.isArray(values)) {
+			values = [values];
+		}
+		this.elements.forEach(function(checkbox) {
+			var isInArray = values.indexOf(checkbox.get()) > -1;
+			checkbox.check(isInArray);
+		});
+		return this;
+	},	
+	addOption: function(checkbox) {
+		if (!(checkbox instanceof this.memberClass)) {
+			checkbox = new this.memberClass(checkbox);
+		}
+		checkbox.setAttribute('name', this.name);
+		this.elements.push(checkbox);
 	}
 });
-Form.Radio = Element.createClass('input', Form.Checkbox, {
+Form.Radio = Form.Checkbox.subclass({
 	construct: function() {
 		this.attributes.type = 'radio';
-	},
-	set: function(value) {
-		this.attributes.selected = (value === this.attributes.value ? 'selected' : undefined);
 	}
 });
-Form.Option = Element.createClass('option', Form.Element, {
+Form.Radios = Form.Checkboxes.subclass({
+	memberClass: Form.Radio,
+});
+Form.Option = Form.Element.subclass({
+	tagName: 'option',
 	construct: function() {
 		this.text = util.castToString(this.attributes.text);
 		delete this.attributes.text;
 	},
 	render: function() {
-		this.attributes.value = this.value;
+		this.attributes.value = this.value; // TODO use setAttribute to keep in sync?
 		return util.tag('option', this.attributes) + this.text + util.tag('/option');
 	}
 });
-Form.Select = Element.createClass('select', Form.Element, {
+Form.Select = Form.Element.subclass({
+	tagName: 'select',
 	construct: function() {
 		this.options = [];
 		if (Array.isArray(this.attributes.options)) {
