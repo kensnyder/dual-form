@@ -52,6 +52,18 @@ module.exports = {
 		test.deepEqual(form.get(), expected, 'Two options checked');
 
 		test.done();
-	}
+	}	
+	// ,
+	// "brackets level 1": function(test) {
+	// 	var expected;
+	// 	var form = new Form();
+
+	// 	form.add('user[fname]', 'input', { value: 'Alice' });
+
+	// 	expected = {user: {fname: 'Alice'} };
+	// 	test.deepEqual(form.get(), expected, 'brackets 1');
+
+	// 	test.done();
+	// }
 
 };

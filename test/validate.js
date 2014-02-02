@@ -168,10 +168,27 @@ module.exports = {
 		test.strictEqual(typeof cboxes.addValidator, 'function', "addValidator exists");
 		test.strictEqual(typeof cboxes.validate, 'function', "validate exists");
 
-		// cboxes.addValidator(function(value, result) {
+		function oneOrMoreChecked(value, result) {
+			if (value.length > 0) {
+				return true;
+			}
+			return 'Check at least one friend.';
+		}
+		form.elements[0].addValidator(oneOrMoreChecked);
+		expected = {
+			valid: false,
+			warnings: [],
+			errors: [{
+				element: form.elements[0],
+				message: 'Check at least one friend.'
+			}]
+		};
+		test.deepEqual(form.elements[0].validate(), expected, "none checked - expected one");
 
-		// });
-
+		form.elements[0].set([10,20]);
+		expected.valid = true;
+		expected.errors.shift();
+		test.deepEqual(form.elements[0].validate(), expected, "two checked");
 		test.done();
 	}
 
