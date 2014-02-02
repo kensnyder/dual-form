@@ -113,5 +113,44 @@ module.exports = {
 
 		test.done();
 	}
+	,
+	"custom validator - two matching fields": function(test) {
+		var form, expected;
+		form = new Form();
+
+		form.add('account_password', 'password');
+		form.add('repeat_password', 'password');
+		function matches(input1, message) {
+			return function(value, result) {
+				if (value === input1.get()) {
+					return true;
+				}
+				return message;
+			};
+		}
+		form.set({
+			account_password: 'password123',
+			repeat_password: 'password123'
+		});
+		form.elements[1].addValidator(
+			matches(form.elements[0], 'Password and Repeat Password must match.')
+		);
+		expected = {
+			valid: true,
+			warnings: [],
+			errors: []
+		};
+		test.deepEqual(form.elements[1].validate(), expected, 'passwords match');
+
+		form.set('repeat_password', 'password124');
+		expected.errors.push({
+			element: form.elements[1],
+			message: 'Password and Repeat Password must match.'
+		});
+		expected.valid = false;
+		test.deepEqual(form.elements[1].validate(), expected, "passwords don't match");
+
+		test.done();
+	}
 
 };
