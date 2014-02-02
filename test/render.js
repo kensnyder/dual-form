@@ -359,7 +359,7 @@ module.exports = {
 	}
 	,
 	"automatic ids": function(test) {
-		var expected;
+		var actual;
 		var form = new Form();
 		// select a radio
 		form.add('location[]', 'radios', {
@@ -369,12 +369,9 @@ module.exports = {
 			]
 		});
 		
-		expected = 
-			'<div>\
-				<input type=radio name=location[] id=FormElement1 value="29"> <label for=FormElement1>Hilldale</label><br>\
-				<input type=radio name=location[] id=FormElement2 value="18"> <label for=FormElement2>Springfield</label><br>\
-			</div>';
-		test.htmlEqual('<div>' + form.renderElements() + '</div>', expected, 'radio group with auto ids');
+		actual = htmlToObject('<div>' + form.renderElements() + '</div>');
+		test.strictEqual((/^FormElement\d+$/).test(actual.childNodes[0].attributes.id), true, 'radio group with auto ids 1');
+		test.strictEqual((/^FormElement\d+$/).test(actual.childNodes[2].attributes.for), true, 'radio group with auto ids 2');
 
 		test.done();
 	}
