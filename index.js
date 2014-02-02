@@ -11,8 +11,6 @@ var elements = require('./lib/Form.Elements');
 _.extend(Form, elements);
 
 module.exports = {
-	util: util,
-	Base: Base,
 	Element: Element,
 	Form: Form
 };

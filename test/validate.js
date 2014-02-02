@@ -152,5 +152,27 @@ module.exports = {
 
 		test.done();
 	}
+	,
+	"custom validator - checkboxes": function(test) {
+		var form, expected;
+		form = new Form();
+
+		form.add('friends[]', 'checkboxes', {
+			options: [
+				{ value: 10, label: 'Alice'},
+				{ value: 20, label: 'Bob'},
+				{ value: 30, label: 'Eve'}
+			]
+		});
+		var cboxes = form.elements[0];
+		test.strictEqual(typeof cboxes.addValidator, 'function', "addValidator exists");
+		test.strictEqual(typeof cboxes.validate, 'function', "validate exists");
+
+		// cboxes.addValidator(function(value, result) {
+
+		// });
+
+		test.done();
+	}
 
 };
