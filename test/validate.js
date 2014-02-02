@@ -1,6 +1,6 @@
 "use strict";
 
-var dualForm = require('../src/dual-form');
+var dualForm = require('../index');
 var Form = dualForm.Form;
 
 module.exports = {

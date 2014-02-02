@@ -23,41 +23,41 @@ module.exports = function(grunt) {
 					"smarttabs": true,
 					"globals": {}
 				},
-				src: ['src/**/*.js']
+				src: ['lib/**/*.js']
 			}
 		},
 		nodeunit: {
 			all: ['test/**/*.js']
 		},
-		uglify: {
-			options: {
-				banner: '<%= banner %>',
-				report: 'gzip'
-			},
-			dist: {
-				src:  './src/diskStorage.js',
-				dest: './dist/diskStorage.min.js'
-			},
-			shims: {
-				src:  './dist/DiskStorage.shims.min.js',
-				dest: './dist/DiskStorage.shims.min.js'
-			}
-		},
-		yuidoc: {
-			compile: {
-				name: '<%= pkg.name %>',
-				description: '<%= pkg.description %>',
-				version: '<%= pkg.version %>',
-				url: '<%= pkg.homepage %>',
-				options: {
-					paths: ['src'],
-					outdir: 'docs'
-				}
-			}
-		},
+		// uglify: {
+		// 	options: {
+		// 		banner: '<%= banner %>',
+		// 		report: 'gzip'
+		// 	},
+		// 	dist: {
+		// 		src:  './src/diskStorage.js',
+		// 		dest: './dist/diskStorage.min.js'
+		// 	},
+		// 	shims: {
+		// 		src:  './dist/DiskStorage.shims.min.js',
+		// 		dest: './dist/DiskStorage.shims.min.js'
+		// 	}
+		// },
+		// yuidoc: {
+		// 	compile: {
+		// 		name: '<%= pkg.name %>',
+		// 		description: '<%= pkg.description %>',
+		// 		version: '<%= pkg.version %>',
+		// 		url: '<%= pkg.homepage %>',
+		// 		options: {
+		// 			paths: ['src'],
+		// 			outdir: 'docs'
+		// 		}
+		// 	}
+		// },
 		watch: {
 			scripts: {
-				files: ['Gruntfile.js', 'src/**/*.*', 'test/**/*.*'],
+				files: ['Gruntfile.js', 'lib/**/*.*', 'test/**/*.*'],
 				tasks: ['jshint', 'nodeunit']
 			}
 		}

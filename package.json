@@ -2,6 +2,7 @@
   "name": "dual-form",
   "description": "Form processing, validation, and rendering for NodeJS and the Browser",
   "version": "0.1.0",
+  "main": "./index.js",
   "dependencies": {
     "lodash": "~2.4.1"
   },

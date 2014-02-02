@@ -1,7 +1,7 @@
 "use strict";
 
 var DOMParser = require('xmldom').DOMParser;
-var dualForm = require('../src/dual-form');
+var dualForm = require('../index');
 var Form = dualForm.Form;
 var HTMLElement = dualForm.HTMLElement;
 var util = dualForm.util;
