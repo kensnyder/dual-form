@@ -12,7 +12,7 @@ module.exports = {
 		test.done();
 	}
 	,
-	"diveSet": function(test) {
+	"diveSet on empty object": function(test) {
 		var expected;
 
 		test.strictEqual(typeof util.diveSet, 'function', 'function exists');
@@ -25,6 +25,32 @@ module.exports = {
 
 		expected = {tags: [18]};
 		test.deepEqual(util.diveSet({}, ['tags','[]'], 18), expected, 'array path');
+
+		test.done();
+	}
+	,
+	"diveSet with initial values": function(test) {
+		var initial, expected;
+
+		initial = {fname:'Alice'};
+		expected = {fname:'Alice', lname:'Johnson'};
+		test.deepEqual(util.diveSet(initial, ['lname'], 'Johnson'), expected, 'one level path');
+
+		initial = {user: {fname:'Alice'}};
+		expected = {user: {fname:'Alice', lname:'Johnson'}};
+		test.deepEqual(util.diveSet(initial, ['user','lname'], 'Johnson'), expected, 'two level path');
+
+		initial = {tags: [18]};
+		expected = {tags: [18,24]};
+		test.deepEqual(util.diveSet(initial, ['tags','[]'], 24), expected, 'explicit array path');
+
+		initial = {tags: [18]};
+		expected = {tags: [18,24]};
+		test.deepEqual(util.diveSet(initial, ['tags'], 24), expected, 'implied array path');
+
+		initial = {post: {tags: [18]}};
+		expected = {post: {tags: [18,24]}};
+		test.deepEqual(util.diveSet(initial, ['post','tags'], 24), expected, 'two level implied array path');
 
 		test.done();
 	}

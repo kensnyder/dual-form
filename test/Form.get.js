@@ -53,17 +53,44 @@ module.exports = {
 
 		test.done();
 	}	
-	// ,
-	// "brackets level 1": function(test) {
-	// 	var expected;
-	// 	var form = new Form();
+	,
+	"brackets level 1": function(test) {
+		var expected;
+		var form = new Form();
 
-	// 	form.add('user[fname]', 'input', { value: 'Alice' });
+		form.add('user[fname]', 'input', { value: 'Alice' });
 
-	// 	expected = {user: {fname: 'Alice'} };
-	// 	test.deepEqual(form.get(), expected, 'brackets 1');
+		expected = {user: {fname: 'Alice'} };
+		test.deepEqual(form.get(), expected, 'brackets 1');
 
-	// 	test.done();
-	// }
+		test.done();
+	}	
+	,
+	"explicit array after brackets": function(test) {
+		var expected;
+		var form = new Form();
+
+		form.add('post[tags][]', 'input', { value: 'JavaScript' });
+		expected = {post:{tags:['JavaScript']}};
+		test.deepEqual(form.get(), expected, 'one input');
+
+		form.add('post[tags][]', 'input', { value: 'NodeJS' });
+		expected = {post:{tags:['JavaScript','NodeJS']}};
+		test.deepEqual(form.get(), expected, 'two inputs');
+
+		test.done();
+	}	
+	,
+	"implied array after brackets": function(test) {
+		var expected;
+		var form = new Form();
+
+		form.add('post[tags]', 'input', { value: 'JavaScript' });
+		form.add('post[tags]', 'input', { value: 'NodeJS' });
+		expected = {post:{tags:['JavaScript','NodeJS']}};
+		test.deepEqual(form.get(), expected, 'two inputs');
+
+		test.done();
+	}
 
 };
