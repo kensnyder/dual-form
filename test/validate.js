@@ -190,6 +190,29 @@ module.exports = {
 		expected.errors.shift();
 		test.deepEqual(form.elements[0].validate(), expected, "two checked");
 		test.done();
+	}	
+	,
+	"built-in validators": function(test) {
+		var input, expected;
+		input = new Form.Input({name:'fname'});
+		input.addValidator('required', 'First name is required.');
+
+		expected = {
+			valid: false,
+			warnings: [],
+			errors: [{
+				element: input,
+				message: 'First name is required.'
+			}]
+		};		
+		test.deepEqual(input.validate(), expected, "required field missing");
+
+		input.set('Alice');
+		expected.valid = true;
+		expected.errors = [];
+		test.deepEqual(input.validate(), expected, "required field present");
+
+		test.done();
 	}
 
 };
